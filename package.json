@@ -1,0 +1,23 @@
+{
+  "name": "swe-workflow",
+  "version": "1.0.0",
+  "description": "Autonomous, disciplined software engineering workflow combining ECC auto-detection, Karpathy surgical simplicity, CodePath F2P reproduction, and calibrated dual-gate judges.",
+  "license": "MIT",
+  "scripts": {
+    "eval": "python3 eval/run_eval.py",
+    "setup": "bash setup.sh"
+  },
+  "keywords": [
+    "ai-agent",
+    "swe-workflow",
+    "claude-code",
+    "cursor",
+    "deepseek-harness",
+    "zcode",
+    "codex",
+    "skills",
+    "subagents",
+    "f2p",
+    "evals"
+  ]
+}
