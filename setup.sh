@@ -1,75 +1,46 @@
 #!/usr/bin/env bash
-# setup.sh - One-command installer for SWE Workflow Suite across any agent harness
+# setup.sh - installer entry point for the swe-workflow suite.
 #
-# Supported Harnesses:
-#   - Claude Code (.claude/)
-#   - DeepSeek Harness (.dsh/)
-#   - Cursor (.cursor/)
-#   - Codex (.codex/)
-#   - OpenCode (.opencode/)
-#   - ZCode (.zcode/)
-#
-# Usage:
-#   # From inside your target workspace:
-#   bash /path/to/swe-workflow/setup.sh
-#   # Or run directly in any project:
+# Local checkout:
+#   bash setup.sh [target-dir]
+# Remote (no clone needed):
 #   curl -fsSL https://raw.githubusercontent.com/Unheat/swe-workflow/main/setup.sh | bash
+#
+# It materializes the three skills in <target>/.agents/skills/, then delegates to the
+# skill's own setup.sh for subagents, harness adapter links and the pre-push hook.
+# The skill-level script is the only place that owns install behaviour.
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="${1:-$(pwd)}"
+mkdir -p "$TARGET_DIR"
+TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 
-echo "🚀 [swe-workflow] Installing SWE Workflow Suite into: $TARGET_DIR"
-cd "$TARGET_DIR"
+SOURCE_DIR=""
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 
-# 1. Ensure target skill directories
-mkdir -p .agents/skills
-mkdir -p .agent/agents
-mkdir -p .agents/subagents
-mkdir -p .claude/agents
+if [ -z "$SOURCE_DIR" ] || [ ! -d "$SOURCE_DIR/skills" ]; then
+  # Piped install (curl | bash): no local tree to copy from, fetch one.
+  SOURCE_DIR="$(mktemp -d -t swe-workflow-install.XXXXXX)"
+  trap 'rm -rf "$SOURCE_DIR"' EXIT
+  echo "📥 [swe-workflow] Fetching suite into $SOURCE_DIR..."
+  git clone --depth 1 https://github.com/Unheat/swe-workflow.git "$SOURCE_DIR"
+fi
 
-# 2. Copy or update skills
-echo "📦 [1/3] Installing core skills (swe-workflow, judge-plan, judge-pr)..."
-cp -R "$SCRIPT_DIR/skills/swe-workflow" .agents/skills/
-cp -R "$SCRIPT_DIR/skills/judge-plan" .agents/skills/
-cp -R "$SCRIPT_DIR/skills/judge-pr" .agents/skills/
+echo "🚀 [swe-workflow] Installing skill suite into: $TARGET_DIR"
+mkdir -p "$TARGET_DIR/.agents/skills"
 
-# 3. Register judge subagents
-echo "🤖 [2/3] Registering judge subagents..."
-for agent_file in "$SCRIPT_DIR/skills/swe-workflow/agents"/*.md; do
-  if [ -f "$agent_file" ]; then
-    base_name="$(basename "$agent_file")"
-    cp "$agent_file" ".agent/agents/$base_name"
-    cp "$agent_file" ".agents/subagents/$base_name"
-    cp "$agent_file" ".claude/agents/$base_name"
-    echo "   -> Registered agent: $base_name"
+for skill in swe-workflow judge-plan judge-pr; do
+  dest="$TARGET_DIR/.agents/skills/$skill"
+  if [ -L "$dest" ]; then
+    echo "  ℹ️  $dest is a symlink (catalog-managed); left untouched."
+    continue
   fi
+  cp -R "$SOURCE_DIR/skills/$skill" "$TARGET_DIR/.agents/skills/"
+  echo "  -> Installed skill: $skill"
 done
 
-# 4. Scaffolding cross-harness symlinks
-echo "🔗 [3/3] Scaffolding cross-harness adapter symlinks..."
-mkdir -p .claude .cursor .dsh .codex .opencode .zcode
-
-ensure_link() {
-  local link_path="$1"
-  local target_path="$2"
-  if [ ! -e "$link_path" ] && [ ! -L "$link_path" ]; then
-    ln -s "$target_path" "$link_path"
-    echo "   -> Linked $link_path -> $target_path"
-  fi
-}
-
-ensure_link ".claude/skills" "../.agents/skills"
-ensure_link ".cursor/skills" "../.agents/skills"
-ensure_link ".dsh/skills" "../.agents/skills"
-ensure_link ".codex/skills" "../.agents/skills"
-ensure_link ".opencode/skills" "../.agents/skills"
-ensure_link ".zcode/skills" "../.agents/skills"
-
-echo ""
-echo "🎉 [swe-workflow] Successfully installed!"
-echo "   Available skills in your harness:"
-echo "   • /swe-workflow  - Disciplined 4-phase autonomous software engineering"
-echo "   • /judge-plan    - Calibrated plan review gate before implementation"
-echo "   • /judge-pr      - Calibrated PR & verification gate before delivery"
+cd "$TARGET_DIR"
+exec bash .agents/skills/swe-workflow/setup.sh

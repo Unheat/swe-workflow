@@ -4,3 +4,6 @@ __pycache__/
 .DS_Store
 .env
 .env.*
+
+# Ship the eval config template (keep real .env ignored)
+!**/.env.example

@@ -28,6 +28,20 @@ Once installed, invoke `/swe-workflow` or the standalone judges `/judge-plan` an
 
 ---
 
+## 🔄 Updating an Existing Install
+
+Pushing this repo does **not** update installed copies. Update each machine/workspace:
+
+| Install style | Update |
+|---|---|
+| Harness catalog link (recommended locally) | `git pull` in your clone — every workspace symlinked through `~/.agents/catalog/skills/` sees it immediately |
+| Skills CLI | `npx skills update -y` |
+| Vendored copy / `setup.sh` | `git -C <clone> pull && bash <clone>/setup.sh <workspace>` |
+
+Agents (`.agent/agents/*.md`) and the pre-push hook (`.git/hooks/pre-push`) are copied by `setup.sh`; re-run it after a pull that touches `agents/` or `hooks/`. Full options and the propagation matrix: [`skills/swe-workflow/README.md`](skills/swe-workflow/README.md).
+
+---
+
 ## 🏗️ The 4-Phase Pipeline
 
 ```
