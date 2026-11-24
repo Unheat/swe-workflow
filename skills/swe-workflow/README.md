@@ -77,24 +77,25 @@ Tradeoff: brittle across machines/CI; changes are live immediately.
 
 ### Option D: Harness catalog link (recommended on this machine)
 
-The harness manager owns the machine catalog; the workspace gets a symlink instead of a copy.
-Point the catalog entry at your local clone once, then link any workspace:
+Develop in a checkout, push to GitHub, and let the catalog **deploy from origin**. The catalog is a
+deployment copy, not your working tree, so uncommitted or unpushed edits never reach other workspaces.
 
 ```bash
-ln -sfn /path/to/swe-workflow/skills/swe-workflow ~/.agents/catalog/skills/swe-workflow
-ln -sfn /path/to/swe-workflow/skills/judge-plan   ~/.agents/catalog/skills/judge-plan
-ln -sfn /path/to/swe-workflow/skills/judge-pr     ~/.agents/catalog/skills/judge-pr
+# once: create the deployment clone (~/.agents/catalog/repos/swe-workflow) and catalog links
+bash scripts/update-catalog.sh
 
+# in each workspace: link through the catalog
 cd /path/to/target-workspace
-harness skill add swe-workflow   # .agents/skills/swe-workflow -> catalog -> your clone
-harness skill add judge-plan
-harness skill add judge-pr
+harness skill add swe-workflow
 bash .agents/skills/swe-workflow/setup.sh
+
+# after pushing a change: move every linked workspace to it
+bash scripts/update-catalog.sh
+bash scripts/update-catalog.sh --check   # drift report
 ```
 
-Result: one editable copy. Edits or `git pull` in the clone are visible in every linked workspace
-immediately; no reinstall and no second copy to drift. `harness status` and `harness catalog` show
-the links.
+Result: one pushed source. Skill bodies are live through the symlinks as soon as the catalog
+fast-forwards; `harness status` shows the workspace entry as `linked`.
 
 ### Option E: Git submodule/subtree (version-pinned)
 
@@ -104,8 +105,8 @@ Use when you want reproducible, git-tracked skill versions. More ceremony, but e
 
 | Change | Reaches other local workspaces | Reaches other machines |
 |---|---|---|
-| Edit / `git pull` in the clone (catalog or symlink install) | Immediately | No — each machine pulls its own copy |
-| `git push` to GitHub | No | No — it is the shared source, not a deployment |
+| Push, then `bash scripts/update-catalog.sh` (catalog installs) | Immediately, after the catalog fast-forwards | No — each machine runs its own catalog update |
+| `git push` alone | No | No — it is the shared source, not a deployment |
 | `setup.sh` re-run | Refreshes agent copies, adapter links, pre-push hook | Only on that machine |
 
 Agents (`.agent/agents/*.md`) and the pre-push hook (`.git/hooks/pre-push`) are **copies**, not links,

@@ -34,7 +34,7 @@ Pushing this repo does **not** update installed copies. Update each machine/work
 
 | Install style | Update |
 |---|---|
-| Harness catalog link (recommended locally) | `git pull` in your clone — every workspace symlinked through `~/.agents/catalog/skills/` sees it immediately |
+| Harness catalog link (recommended locally) | Push, then `bash scripts/update-catalog.sh` — the catalog deploy clone follows `origin/main` and every linked workspace sees it |
 | Skills CLI | `npx skills update -y` |
 | Vendored copy / `setup.sh` | `git -C <clone> pull && bash <clone>/setup.sh <workspace>` |
 
